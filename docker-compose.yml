@@ -1,0 +1,62 @@
+version: '3.7'
+
+networks:
+  parser_net:
+    driver: bridge
+
+services:
+  fpm:
+    container_name: parser_fpm
+    build:
+      context: ./docker/conf/fpm
+      dockerfile: Dockerfile
+    volumes:
+      - ./app:/var/www/vhosts/parser/
+    working_dir: /var/www/vhosts/parser
+    command: "/usr/sbin/php-fpm7.3 -F -O"
+    environment:
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - YII_ENV=${YII_ENV}
+      - YII_DEBUG=${YII_DEBUG}
+    user: "www-data"
+    networks:
+      - parser_net
+
+  nginx:
+    container_name: parser_nginx
+    image: nginx
+    expose:
+      - "80"
+    ports:
+      - "80:80"
+    volumes:
+      - ./app:/var/www/vhosts/parser
+      - ./docker/etc/nginx:/etc/nginx
+    networks:
+      parser_net:
+        aliases:
+          - parser-dev.com
+
+  mysql:
+    container_name: parser_mysql
+    image: mysql:5.7
+#    image: mysql:latest
+#    command:
+#      - "--default-authentication-plugin=mysql_native_password"
+    volumes:
+      - ./docker/etc/mysql:/etc/mysql/conf.d
+      - ./docker/dump:/root/dump
+      - ./docker/database:/var/lib/mysql
+      - ./docker/mysql:/docker-entrypoint-initdb.d
+    ports:
+      - ${DB_OUT_PORT}:3306
+#    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${DB_DATABASE}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+    networks:
+      - parser_net
