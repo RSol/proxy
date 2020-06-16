@@ -4,6 +4,7 @@ namespace app\models;
 
 use yii\db\ActiveQuery;
 use yii\db\ActiveRecord;
+use yii\helpers\ArrayHelper;
 
 /**
  * This is the model class for table "proxy".
@@ -19,6 +20,33 @@ use yii\db\ActiveRecord;
  */
 class Proxy extends ActiveRecord
 {
+    const ANONYMITY_APH = 1;
+    const ANONYMITY_NOA = 2;
+    const ANONYMITY_ANM = 3;
+    const ANONYMITY_HIA = 4;
+    const ANONYMITY_UNKNOWN = 0;
+
+    public static function getAnonymityList()
+    {
+        return [
+            static::ANONYMITY_APH => 'A+H',
+            static::ANONYMITY_NOA => 'NOA',
+            static::ANONYMITY_ANM => 'ANM',
+            static::ANONYMITY_HIA => 'HIA',
+            static::ANONYMITY_UNKNOWN => '-',
+        ];
+    }
+
+    public function getAnonymityLabel($default = '')
+    {
+        return ArrayHelper::getValue(static::getAnonymityList(), $this->anonymity, $default);
+    }
+
+    public static function getAnonymityByLabel($label)
+    {
+        return ArrayHelper::getValue(array_flip(static::getAnonymityList()), $label, static::ANONYMITY_UNKNOWN);
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -35,7 +63,7 @@ class Proxy extends ActiveRecord
         return [
             [['port', 'anonymity', 'country_id'], 'integer'],
             [['address'], 'string', 'max' => 17],
-            [['type'], 'string', 'max' => 10],
+            [['type'], 'string', 'max' => 20],
             [['country_id'], 'exist', 'skipOnError' => true, 'targetClass' => ProxyCountry::class, 'targetAttribute' => ['country_id' => 'id']],
         ];
     }
@@ -51,7 +79,7 @@ class Proxy extends ActiveRecord
             'port' => 'Port',
             'type' => 'Type',
             'anonymity' => 'Anonymity',
-            'country_id' => 'Country ID',
+            'country_id' => 'Country',
         ];
     }
 

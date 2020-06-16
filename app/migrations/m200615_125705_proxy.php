@@ -15,8 +15,8 @@ class m200615_125705_proxy extends Migration
         $this->createTable('proxy', [
             'id' => $this->primaryKey(),
             'address' => $this->string(17),
-            'port' => $this->smallInteger(),
-            'type' => $this->string(10),
+            'port' => $this->integer()->unsigned(),
+            'type' => $this->string(20),
             'anonymity' => $this->smallInteger(),
             'country_id' => $this->integer(),
         ]);
