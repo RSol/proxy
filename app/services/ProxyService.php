@@ -2,24 +2,13 @@
 
 namespace app\services;
 
+use app\components\ProxyData;
 use app\models\Proxy;
-use app\models\ProxyCountry;
-use yii\helpers\ArrayHelper;
 
 class ProxyService
 {
     /**
-     * @var array
-     */
-    private $countries;
-
-    public function __construct()
-    {
-        $this->countries = ArrayHelper::map(ProxyCountry::find()->all(), 'name', 'id');
-    }
-
-    /**
-     * @param array $proxies
+     * @param ProxyData[] $proxies
      * @return int
      */
     public function saveParsed($proxies)
@@ -32,50 +21,29 @@ class ProxyService
     }
 
     /**
-     * @param $proxy
+     * @param ProxyData $proxy
      * @return bool
      */
-    private function saveOne($proxy)
+    public function saveOne($proxy)
     {
         if ($this->isExists($proxy)) {
             return false;
         }
-        $proxy['country_id'] = array_key_exists($proxy['country'], $this->countries)
-            ? $this->countries[$proxy['country']]
-            : $this->addCountry($proxy['country']);
-        $proxy['anonymity'] = Proxy::getAnonymityByLabel($proxy['anonymity']);
-        unset($proxy['country']);
-        $model = new Proxy($proxy);
-        return $model->save();
+        return (new Proxy($proxy->toArray()))->save(false);
     }
 
     /**
-     * @param $proxy
+     * @param ProxyData $proxy
      * @return bool
      */
     private function isExists($proxy)
     {
         return Proxy::find()
             ->where([
-                'address' => $proxy['address'],
-                'port' => $proxy['port'],
-                'type' => $proxy['type'],
+                'address' => $proxy->address,
+                'port' => $proxy->port,
+                'type' => $proxy->type,
             ])
             ->exists();
-    }
-
-    /**
-     * @param $name
-     * @return int
-     */
-    private function addCountry($name)
-    {
-        $model = new ProxyCountry();
-        $model->name = $name;
-        if ($model->save()) {
-            $this->countries[$name] = $model->id;
-            return $model->id;
-        }
-        return 0;
     }
 }

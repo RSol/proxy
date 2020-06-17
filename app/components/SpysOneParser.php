@@ -59,7 +59,7 @@ class SpysOneParser extends Component
      * ...
      * ]
      * </pre>
-     * @return array
+     * @return ProxyData[]
      * @throws ChildNotFoundException
      * @throws CircularException
      * @throws CurlException
@@ -82,15 +82,15 @@ class SpysOneParser extends Component
      */
     private function getTDPorts($data)
     {
-        $params = $this->getScriptParams($data);
-        $vars = $this->getPortsVar($params);
+        $vars = $this->getPortsVars($data);
         $scripts = $this->getTDScripts($data);
-        $results = [];
         uksort($vars, static function ($a, $b) {
             return strlen($a) < strlen($b);
         });
         $search = array_keys($vars);
         $replace = array_values($vars);
+
+        $results = [];
         foreach ($scripts as $script) {
             $port = 0;
             $str = '$port=' . str_replace($search, $replace, $script) . ';';
@@ -132,7 +132,7 @@ class SpysOneParser extends Component
 
     /**
      * @param $pots
-     * @return array
+     * @return ProxyData[]
      * @throws ChildNotFoundException
      * @throws NotLoadedException
      */
@@ -143,7 +143,7 @@ class SpysOneParser extends Component
         /** @var Dom\HtmlNode $content */
         foreach ($contents as $i => $content) {
             $row = $this->parseRow($content);
-            $row['port'] = $pots[$i];
+            $row->port = $pots[$i];
             $result[] = $row;
         }
         return $result;
@@ -151,48 +151,54 @@ class SpysOneParser extends Component
 
     /**
      * @param Dom\HtmlNode $content
-     * @return array
+     * @return ProxyData
      * @throws ChildNotFoundException
      */
     private function parseRow($content)
     {
-        $result = [];
+        $result = new ProxyData();
         /** @var Dom\HtmlNode $item */
         foreach ($content->find('td') as $i => $item) {
             switch ($i) {
                 case 0:
-                    $result['address'] = $item->text(true);
+                    $result->address = $item->text(true);
                     break;
                 case 1:
-                    $result['type'] = $item->text(true);
+                    $result->type = $item->text(true);
                     break;
                 case 2:
-                    $result['anonymity'] = $item->text(true);
+                    $result->anonymity = $item->text(true);
                     break;
                 case 3:
-                    $result['country'] = trim($item->find('font')->text());
+                    $result->country = trim($item->find('font')->text());
                     break;
+                default:
+                    continue 2;
             }
         }
         return $result;
     }
 
     /**
+     * Analog of JS function y=function(c){return(c<r?'':y(parseInt(c/r)))+((c=c%r)>35?String.fromCharCode(c+29):c.toString(36))};
+     *
      * @param $c
      * @param $r
      * @return string
      */
-    private function y1($c, $r)
+    private function y($c, $r)
     {
         return ($c < $r
                 ? ''
-                : $this->y1((int)($c / $r), $r))
+                : $this->y((int)($c / $r), $r))
             . (($c %= $r) > 35
                 ? chr($c + 29)
                 : base_convert($c, 10, 36));
     }
 
     /**
+     * Analog of JS function function(p,r,o,x,y,s){y=function(c){return(c<r?'':y(parseInt(c/r)))+((c=c%r)>35?String.fromCharCode(c+29):c.toString(36))};if(!''.replace(/^/,String)){while(o--){s[y(o)]=x[o]||y(o)}x=[function(y){return s[y]}];y=function(){return'\\w+'};o=1};while(o--){if(x[o]){p=p.replace(new RegExp('\\b'+y(o)+'\\b','g'),x[o])}}return p}
+     *
      * @param $p
      * @param $r
      * @param $o
@@ -204,7 +210,7 @@ class SpysOneParser extends Component
         $s = [];
         $x = explode('^', $x);
         while ($o--) {
-            $s[$this->y1($o, $r)] = $x[$o] ?: $this->y1($o, $r);
+            $s[$this->y($o, $r)] = $x[$o] ?: $this->y($o, $r);
         }
 
         return preg_replace_callback('/\b\w\b/', static function ($matches) use ($s) {
@@ -213,28 +219,47 @@ class SpysOneParser extends Component
     }
 
     /**
-     * @param $params
+     * @param $data
      * @return array
      */
-    private function getPortsVar($params)
+    private function getPortsVars($data)
     {
-        $res = call_user_func_array([$this, 'jsEmulator'], $params);
+        $params = $this->getScriptParams($data);
+        $jsLine = call_user_func_array([$this, 'jsEmulator'], $params);
+        return $this->calcExpressions($jsLine);
+    }
 
+    /**
+     * @param $jsLine
+     * @return array
+     */
+    private function calcExpressions($jsLine)
+    {
         $result = [];
-        foreach (explode(';', $res) as $item) {
-            [$var, $exp] = explode('=', $item);
-            if (strpos($exp, '^')) {
-                $expn = [];
-                foreach (explode('^', $exp) as $ep) {
-                    $expn[] = is_numeric($ep) ? $ep : ('$' . $ep);
-                }
-                $exp = implode('^', $expn);
-            }
-            $eval = '$' . $var . '=' . $exp . ';';
+        foreach (explode(';', $jsLine) as $item) {
+            [$var, $expression] = explode('=', $item);
+            $$var = 0;
+            $eval = '$' . $var . '=' . $this->transformExpression($expression) . ';';
             eval($eval);
             $result[$var] = $$var;
         }
         return $result;
+    }
+
+    /**
+     * @param string $expression
+     * @return string
+     */
+    private function transformExpression($expression)
+    {
+        if (!strpos($expression, '^')) {
+            return $expression;
+        }
+        $phpExpression = [];
+        foreach (explode('^', $expression) as $ep) {
+            $phpExpression[] = is_numeric($ep) ? $ep : ('$' . $ep);
+        }
+        return implode('^', $phpExpression);
     }
 
     /**

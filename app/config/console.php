@@ -1,5 +1,10 @@
 <?php
 
+use yii\gii\Module;
+use yii\log\FileTarget;
+use app\components\SpysOneParser;
+use app\components\SpysOneSimpleGetter;
+
 $params = require __DIR__ . '/params.php';
 $db = require __DIR__ . '/db.php';
 
@@ -14,18 +19,19 @@ $config = [
         '@tests' => '@app/tests',
     ],
     'components' => [
-        'cache' => [
-            'class' => 'yii\caching\FileCache',
-        ],
         'log' => [
             'targets' => [
                 [
-                    'class' => 'yii\log\FileTarget',
+                    'class' => FileTarget::class,
                     'levels' => ['error', 'warning'],
                 ],
             ],
         ],
         'db' => $db,
+        'spysOneParser' => [
+            'class' => SpysOneParser::class,
+            'urlGetter' => SpysOneSimpleGetter::class,
+        ],
     ],
     'params' => $params,
     /*
@@ -41,7 +47,7 @@ if (YII_ENV_DEV) {
     // configuration adjustments for 'dev' environment
     $config['bootstrap'][] = 'gii';
     $config['modules']['gii'] = [
-        'class' => 'yii\gii\Module',
+        'class' => Module::class,
     ];
 }
 

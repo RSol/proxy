@@ -1,11 +1,11 @@
 <?php
 
 use app\models\Proxy;
-use app\models\ProxyCountry;
-use yii\helpers\ArrayHelper;
 use yii\helpers\Html;
 use yii\grid\GridView;
 use yii\widgets\Pjax;
+use app\services\ProxyCountryService;
+
 /* @var $this yii\web\View */
 /* @var $searchModel app\models\ProxySearch */
 /* @var $dataProvider yii\data\ActiveDataProvider */
@@ -40,9 +40,7 @@ $this->params['breadcrumbs'][] = $this->title;
             ],
             [
                 'attribute' => 'country_id',
-                'filter' => ArrayHelper::map(ProxyCountry::find()->orderBy([
-                    'name' => SORT_ASC,
-                ])->all(), 'id', 'name'),
+                'filter' => (new ProxyCountryService())->getCountriesArray(),
                 'value' => static function(Proxy $model) {
                     return $model->country ? $model->country->name : '-';
                 }

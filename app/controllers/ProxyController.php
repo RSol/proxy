@@ -50,8 +50,7 @@ class ProxyController extends Controller
     {
         /** @var SpysOneParser $parser */
         $parser = Yii::$app->spysOneParser;
-        $proxies = $parser->parse();
-        if ($count = (new ProxyService())->saveParsed($proxies)) {
+        if ($count = (new ProxyService())->saveParsed($parser->parse())) {
             Yii::$app->session->setFlash('success', "Add {$count} proxies");
         } else {
             Yii::$app->session->setFlash('info', "No one new proxies");
